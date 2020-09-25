@@ -1,7 +1,7 @@
 <?php
 // bidRequestを受け取る
 $res = file_get_contents('php://input');
-$bid_res = json_decode($res, true);
+$bid_req = json_decode($res, true);
 
 // responseを返す
 http_response_code(200);
@@ -16,7 +16,7 @@ for ($i = 0; $i < count($ads); ++$i) {
     $counts = 0;
     $ids = $ads[$i]['blocked_app_ids'];
     for ($j = 0; $j < count($ids); ++$j) {
-        if ($bid_res['app_id'] === $ids[$j]) {
+        if ($bid_req['app_id'] === $ids[$j]) {
             break;
         } else {
             $counts++;
@@ -34,7 +34,7 @@ for ($i = 0; $i < count($filtered_ads); ++$i) {
 }
 $data = [
     "ads" => $filtered_ads_ids,
-    "user_id" => $bid_res['user_id']
+    "user_id" => $bid_req['user_id']
 ];
 $data = json_encode($data);
 
@@ -56,7 +56,7 @@ $filtered_predicts = array();
 $max_key = "";
 $max_value = "0";
 foreach ($predict_res as $key => $value) {
-    if ($bid_res['bidfloor'] <= $value) {
+    if ($bid_req['bidfloor'] <= $value) {
         array_push($filtered_predicts, array($key => $value));
         if ($max_value < $value) {
             $max_value = $value;
@@ -74,25 +74,18 @@ for ($i = 0; $i < count($filtered_ads); ++$i) {
 }
 
 $data = [
-    "request_id" => $bid_res['request_id'],
+    "request_id" => $bid_req['request_id'],
     "url" => $ads_url,
     "price" => $max_value
 ];
 $data = json_encode($data);
 
 // SSPにbidResponseを送る
+header('Content-Type: application/json');
+header('Content-Length: ' . strlen($data));
 if (empty($filtered_predicts)) {
     http_response_code(204);
 } else {
-    $context = array(
-        'http' => array(
-            'method'  => 'POST',
-            'header'  => implode("\r\n", array('Content-Type: application/json',)),
-            'content' => $data
-        )
-    );
-
-    $html = file_get_contents('php://input', false, stream_context_create($context));
-    echo $html;
+    echo $data;
 }
 
