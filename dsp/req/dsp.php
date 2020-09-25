@@ -4,7 +4,7 @@ $res = file_get_contents('php://input');
 $bid_res = json_decode($res, true);
 
 // responseを返す
-echo "HTTP/1.1 200 OK" . "\n";
+http_response_code(200);
 
 // 広告リストの取得
 $res = file_get_contents('/Users/sakuta/web/fancomi_intern/ready-for-miniDSP-Internship/ads.json');
@@ -50,7 +50,6 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
 
 $res = curl_exec($ch);
 $predict_res = json_decode($res, true);
-echo $res . "\n";
 
 // 低い入札金額の広告を除外し、入札金額が一番高い広告を見つける
 $filtered_predicts = array();
@@ -65,3 +64,35 @@ foreach ($predict_res as $key => $value) {
         }
     }
 }
+
+// SSPにbidresponseを送るデータの整形
+$ads_url = '';
+for ($i = 0; $i < count($filtered_ads); ++$i) {
+    if ($filtered_ads[$i]['id'] === (string)$max_key) {
+        $ads_url = $filtered_ads[$i]['url'];
+    }
+}
+
+$data = [
+    "request_id" => $bid_res['request_id'],
+    "url" => $ads_url,
+    "price" => $max_value
+];
+$data = json_encode($data);
+
+// SSPにbidResponseを送る
+if (empty($filtered_predicts)) {
+    http_response_code(204);
+} else {
+    $context = array(
+        'http' => array(
+            'method'  => 'POST',
+            'header'  => implode("\r\n", array('Content-Type: application/json',)),
+            'content' => $data
+        )
+    );
+
+    $html = file_get_contents('php://input', false, stream_context_create($context));
+    echo $html;
+}
+
